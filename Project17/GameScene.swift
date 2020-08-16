@@ -14,54 +14,75 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var starfield: SKEmitterNode!
     var player: SKSpriteNode!
     var scoreLabel: SKLabelNode!
-
+    
     var possibleEnemies = ["ball", "hammer", "tv"]
     var gameTimer: Timer?
     var isGameOver = false
-
+    var spaceDebris = 0
+    var enemyCreationDelay = 1.0
+    
     var score = 0 {
         didSet {
             scoreLabel.text = "Score: \(score)"
         }
     }
-
+    
+    func addShip(_ texture: SKTexture, how: String) {
+        player = SKSpriteNode(texture: texture)
+        player.position = CGPoint(x: 100, y: 384)
+        
+        player.physicsBody = SKPhysicsBody(texture: texture, size: player.size)
+        if (player.physicsBody != nil) {
+            player.physicsBody!.contactTestBitMask = 1
+        }
+        if player.physicsBody == nil {
+            print("\(how) failed")
+        } else {
+            print("\(how) worked")
+        }
+        addChild(player)
+    }
+    
     override func didMove(to view: SKView) {
         backgroundColor = .black
-
+        
         starfield = SKEmitterNode(fileNamed: "starfield")!
         starfield.position = CGPoint(x: 1024, y: 384)
         starfield.advanceSimulationTime(10)
         addChild(starfield)
         starfield.zPosition = -1
-
-        player = SKSpriteNode(imageNamed: "player")
-        player.position = CGPoint(x: 100, y: 384)
-        player.physicsBody = SKPhysicsBody(texture: player.texture!, size: player.size)
-        player.physicsBody?.contactTestBitMask = 1
-        addChild(player)
-
+        
+        //      The atlas version of a texture
+        addShip(SKTexture(imageNamed: "tv"), how: "simple atlas reference")
+        
+        
         scoreLabel = SKLabelNode(fontNamed: "Chalkduster")
         scoreLabel.position = CGPoint(x: 16, y: 16)
         scoreLabel.horizontalAlignmentMode = .left
         addChild(scoreLabel)
-
+        
         score = 0
-
+        
         physicsWorld.gravity = .zero
         physicsWorld.contactDelegate = self
-
-        gameTimer = Timer.scheduledTimer(timeInterval: 0.35, target: self, selector: #selector(createEnemy), userInfo: nil, repeats: true)
+        
+        gameTimer = Timer.scheduledTimer(timeInterval: enemyCreationDelay, target: self, selector: #selector(createEnemy), userInfo: nil, repeats: true)
     }
-
+    
     @objc func createEnemy() {
+        checkDebrisCreation()
         guard let enemy = possibleEnemies.randomElement() else { return }
-
+        
         let sprite = SKSpriteNode(imageNamed: enemy)
         sprite.position = CGPoint(x: 1200, y: Int.random(in: 50...736))
         addChild(sprite)
-
+        
+        spaceDebris += 1
+        
         sprite.physicsBody = SKPhysicsBody(texture: sprite.texture!, size: sprite.size)
-        sprite.physicsBody?.categoryBitMask = 1
+        if (sprite.physicsBody != nil) {
+            sprite.physicsBody!.categoryBitMask = 1
+        }
         sprite.physicsBody?.velocity = CGVector(dx: -500, dy: 0)
         sprite.physicsBody?.angularVelocity = 5
         sprite.physicsBody?.linearDamping = 0
@@ -74,7 +95,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 node.removeFromParent()
             }
         }
-
+        
         if !isGameOver {
             score += 1
         }
@@ -102,5 +123,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         player.removeFromParent()
         isGameOver = true
+        gameTimer?.invalidate()
+    }
+    
+    func checkDebrisCreation() {
+        if spaceDebris > 20 {
+             gameTimer?.invalidate()
+             enemyCreationDelay = enemyCreationDelay - 0.1
+             gameTimer = Timer.scheduledTimer(timeInterval: enemyCreationDelay, target: self, selector: #selector(createEnemy), userInfo: nil, repeats: true)
+             spaceDebris = 0
+             print("enemyCreationDelay =>", enemyCreationDelay)
+         }
     }
 }
